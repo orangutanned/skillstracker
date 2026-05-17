@@ -1,0 +1,1875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schema Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #2C3E6B;
+  --dusty: #5B7FA6;
+  --mid-blue: #8FAFC9;
+  --light-blue: #C9D8E8;
+  --xlit-blue: #EEF3F9;
+  --beige-dark: #C4A882;
+  --beige-mid: #D9C4A8;
+  --beige-lite: #F0E8DC;
+  --beige-xlit: #FAF6F1;
+  --white: #FFFFFF;
+  --text-primary: #2A2A2A;
+  --text-secondary: #6B6B6B;
+  --text-muted: #9B9B9B;
+  --border: rgba(91,127,166,0.15);
+  --border-mid: rgba(91,127,166,0.25);
+  --serif: 'Cormorant Garamond', Georgia, serif;
+  --sans: 'DM Sans', sans-serif;
+  --drawer-width: 260px;
+  --header-height: 56px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); background: var(--beige-xlit); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+
+/* ── OVERLAY ── */
+#overlay { display: none; position: fixed; inset: 0; background: rgba(44,62,107,0.3); z-index: 40; }
+#overlay.open { display: block; }
+
+/* ── DRAWER ── */
+#drawer {
+  position: fixed; top: 0; left: 0; height: 100vh; width: var(--drawer-width);
+  background: var(--navy); z-index: 50;
+  transform: translateX(-100%); transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+  display: flex; flex-direction: column;
+}
+#drawer.open { transform: translateX(0); }
+.drawer-header {
+  padding: 28px 24px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.drawer-title { font-family: var(--serif); font-size: 22px; font-weight: 300; color: var(--white); letter-spacing: 0.02em; line-height: 1.2; }
+.drawer-sub { font-size: 11px; color: var(--mid-blue); margin-top: 4px; letter-spacing: 0.08em; text-transform: uppercase; }
+.drawer-nav { flex: 1; padding: 16px 0; overflow-y: auto; }
+.nav-section { padding: 8px 24px 4px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.35); margin-top: 8px; }
+.nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 24px; cursor: pointer; transition: background 0.15s;
+  font-size: 13px; color: rgba(255,255,255,0.75); font-weight: 400;
+  border-left: 3px solid transparent;
+}
+.nav-item:hover { background: rgba(255,255,255,0.07); color: var(--white); }
+.nav-item.active { background: rgba(201,216,232,0.12); color: var(--white); border-left-color: var(--mid-blue); }
+.nav-item .nav-icon { font-size: 16px; opacity: 0.7; width: 18px; }
+.drawer-footer { padding: 16px 24px; border-top: 1px solid rgba(255,255,255,0.1); }
+.drawer-footer-text { font-size: 11px; color: rgba(255,255,255,0.3); }
+
+/* ── HEADER ── */
+#header {
+  position: fixed; top: 0; left: 0; right: 0; height: var(--header-height);
+  background: var(--white); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 20px; gap: 16px; z-index: 30;
+}
+#menu-btn { background: none; border: none; cursor: pointer; padding: 6px; color: var(--navy); font-size: 20px; line-height: 1; }
+.header-title { font-family: var(--serif); font-size: 18px; font-weight: 400; color: var(--navy); }
+.header-date { margin-left: auto; font-size: 12px; color: var(--text-muted); }
+
+/* ── MAIN ── */
+#main { margin-top: var(--header-height); padding: 24px 20px; max-width: 680px; min-height: calc(100vh - var(--header-height)); }
+
+/* ── PAGES ── */
+.page { display: none; }
+.page.active { display: block; }
+.page-title { font-family: var(--serif); font-size: 28px; font-weight: 300; color: var(--navy); margin-bottom: 4px; }
+.page-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 24px; letter-spacing: 0.04em; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: 14px; padding: 16px 18px; margin-bottom: 12px;
+}
+.card-sm { padding: 12px 16px; }
+
+/* ── STAT GRID ── */
+.stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+.stat-card { background: var(--xlit-blue); border-radius: 12px; padding: 14px 16px; }
+.stat-label { font-size: 11px; color: var(--text-muted); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 4px; }
+.stat-value { font-family: var(--serif); font-size: 28px; font-weight: 300; color: var(--navy); line-height: 1; }
+.stat-unit { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+/* ── SECTION LABEL ── */
+.section-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dusty); font-weight: 500; margin-bottom: 10px; margin-top: 20px; }
+
+/* ── NEEDS BAR ── */
+.need-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.need-name { font-size: 12px; color: var(--text-secondary); width: 110px; flex-shrink: 0; font-family: var(--serif); font-size: 13px; }
+.need-track { flex: 1; height: 6px; background: var(--beige-lite); border-radius: 3px; overflow: hidden; }
+.need-fill { height: 100%; border-radius: 3px; background: var(--dusty); }
+.need-pct { font-size: 11px; color: var(--text-muted); width: 32px; text-align: right; }
+
+/* ── MODE BADGES ── */
+.mode-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+
+/* ── HEATMAP ── */
+.heatmap-row { display: flex; align-items: center; gap: 3px; margin-bottom: 5px; }
+.hm-label { font-size: 11px; color: var(--text-secondary); width: 100px; flex-shrink: 0; font-family: var(--serif); }
+.hm-cell { width: 22px; height: 22px; border-radius: 4px; flex-shrink: 0; cursor: pointer; border: 1px solid var(--border); transition: transform 0.1s, background 0.15s; }
+.hm-cell:active { transform: scale(0.88); }
+.hm-checked { background: var(--dusty); border-color: var(--navy); }
+.hm-unchecked { background: var(--xlit-blue); }
+.hm-future { background: var(--beige-lite) !important; border-color: var(--border) !important; cursor: default !important; }
+.hm-days { display: flex; gap: 3px; margin-left: 103px; margin-bottom: 3px; }
+.hm-day-lbl { width: 24px; text-align: center; font-size: 9px; color: var(--text-muted); }
+
+/* ── COPING CARDS ── */
+.coping-card { border-radius: 14px; padding: 18px; margin-bottom: 14px; background: var(--white); border: 1px solid var(--border); }
+.coping-accent { width: 32px; height: 3px; border-radius: 2px; margin-bottom: 12px; }
+.coping-name { font-family: var(--serif); font-size: 20px; font-weight: 400; color: var(--navy); margin-bottom: 6px; }
+.coping-reminder { font-family: var(--serif); font-size: 14px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 14px; font-style: italic; }
+.coping-steps { margin-bottom: 16px; }
+.coping-step { font-size: 12px; color: var(--text-secondary); padding: 4px 0; display: flex; gap: 8px; align-items: flex-start; }
+.step-num { width: 18px; height: 18px; border-radius: 50%; background: var(--xlit-blue); color: var(--dusty); font-size: 10px; font-weight: 500; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+.counter-row { display: flex; align-items: center; gap: 10px; }
+.count-box { background: var(--xlit-blue); border-radius: 10px; padding: 8px 16px; text-align: center; min-width: 56px; }
+.count-num { font-family: var(--serif); font-size: 26px; font-weight: 300; color: var(--navy); display: block; line-height: 1; }
+.count-lbl { font-size: 10px; color: var(--text-muted); }
+.btn-log { background: var(--navy); color: var(--white); border: none; border-radius: 8px; padding: 10px 18px; font-size: 13px; font-family: var(--sans); cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.15s; }
+.btn-log:hover { background: var(--dusty); }
+.btn-log:active { transform: scale(0.97); }
+.btn-reset-sm { background: none; border: none; font-size: 11px; color: var(--text-muted); cursor: pointer; margin-left: auto; text-decoration: underline; }
+.level-pill { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 500; margin-top: 10px; }
+
+/* ── GALLERY ── */
+.gallery-wrap { position: relative; width: 100%; border-radius: 12px 12px 0 0; overflow: hidden; background: var(--beige-lite); margin: -18px -18px 16px -18px; width: calc(100% + 36px); }
+.gallery-track-outer { overflow: hidden; }
+.gallery-track { display: flex; transition: transform 0.35s cubic-bezier(.4,0,.2,1); }
+.gallery-img { flex-shrink: 0; width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+.gallery-empty { width: 100%; aspect-ratio: 16/9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text-muted); font-size: 13px; font-family: var(--serif); font-style: italic; cursor: pointer; }
+.gallery-empty-icon { font-size: 28px; opacity: 0.4; }
+.gallery-controls { position: absolute; bottom: 10px; left: 0; right: 0; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.gallery-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.5); cursor: pointer; transition: all 0.2s; }
+.gallery-dot.active { background: white; width: 18px; border-radius: 3px; }
+.gallery-nav { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.85); border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--navy); }
+.gallery-nav.prev { left: 8px; }
+.gallery-nav.next { right: 8px; }
+.gallery-nav:active { transform: translateY(-50%) scale(0.9); }
+.gallery-add-btn { position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.9); border: none; border-radius: 20px; padding: 4px 10px; font-size: 11px; font-family: var(--sans); color: var(--navy); cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 500; }
+
+/* ── ADD CARD BUTTON ── */
+.btn-add-card {
+  width: 100%; margin-top: 8px; padding: 13px;
+  border: 1.5px dashed var(--border-mid); border-radius: 12px;
+  background: transparent; font-size: 14px; font-family: var(--sans);
+  color: var(--dusty); cursor: pointer; transition: all 0.15s;
+}
+.btn-add-card:hover { background: var(--xlit-blue); border-color: var(--dusty); }
+.color-swatch {
+  width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent; transition: all 0.15s; flex-shrink: 0;
+}
+.color-swatch.selected { border-color: var(--navy); transform: scale(1.15); }
+/* ── EDITABLE TITLES ── */
+.editable-title { cursor: pointer; position: relative; display: inline-block; }
+.editable-title::after {
+  content: ' ✎'; font-size: 14px; opacity: 0; color: var(--mid-blue);
+  transition: opacity 0.2s; vertical-align: middle;
+}
+.editable-title:hover::after { opacity: 1; }
+.title-input {
+  font-family: var(--serif); font-size: 28px; font-weight: 300; color: var(--navy);
+  border: none; border-bottom: 2px solid var(--dusty); background: transparent;
+  outline: none; width: 100%; padding-bottom: 2px;
+}
+
+.gallery-del-btn { position: absolute; top: 8px; left: 8px; background: rgba(255,255,255,0.85); border: none; border-radius: 50%; width: 24px; height: 24px; font-size: 13px; cursor: pointer; color: #c0392b; display: none; align-items: center; justify-content: center; }
+.gallery-wrap:hover .gallery-del-btn { display: flex; }
+
+/* ── MODE LOG FORM ── */
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dusty); font-weight: 500; margin-bottom: 6px; display: block; }
+.form-input, .form-textarea, .form-select {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border-mid);
+  border-radius: 8px; font-size: 14px; font-family: var(--serif);
+  color: var(--text-primary); background: var(--white);
+  outline: none; transition: border-color 0.15s;
+}
+.form-input:focus, .form-textarea:focus, .form-select:focus { border-color: var(--dusty); }
+.form-textarea { min-height: 80px; resize: vertical; line-height: 1.6; }
+.form-select { font-family: var(--sans); font-size: 13px; }
+.multiselect-container { border: 1px solid var(--border-mid); border-radius: 8px; background: var(--white); overflow: hidden; }
+.multiselect-search { width: 100%; padding: 8px 12px; border: none; border-bottom: 1px solid var(--border); font-size: 13px; font-family: var(--sans); outline: none; }
+.multiselect-options { max-height: 160px; overflow-y: auto; }
+.ms-option { padding: 8px 12px; font-size: 13px; font-family: var(--serif); cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.1s; }
+.ms-option:hover { background: var(--xlit-blue); }
+.ms-option.selected { background: var(--light-blue); }
+.ms-checkbox { width: 14px; height: 14px; border: 1.5px solid var(--mid-blue); border-radius: 3px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ms-checkbox.checked { background: var(--dusty); border-color: var(--dusty); }
+.ms-checkbox.checked::after { content: '✓'; font-size: 9px; color: white; }
+.selected-pills { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; min-height: 24px; }
+.pill { background: var(--light-blue); color: var(--navy); font-size: 11px; padding: 3px 8px; border-radius: 10px; display: flex; align-items: center; gap: 4px; }
+.pill-x { cursor: pointer; font-size: 13px; opacity: 0.6; }
+.pill-x:hover { opacity: 1; }
+.btn-submit { width: 100%; background: var(--navy); color: var(--white); border: none; border-radius: 10px; padding: 13px; font-size: 14px; font-family: var(--sans); font-weight: 500; cursor: pointer; margin-top: 8px; transition: background 0.15s; }
+.btn-submit:hover { background: var(--dusty); }
+.intensity-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.intensity-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border-mid); background: var(--white); font-size: 13px; font-weight: 500; color: var(--text-secondary); cursor: pointer; transition: all 0.1s; }
+.intensity-btn.selected { background: var(--navy); color: var(--white); border-color: var(--navy); }
+
+/* ── LOG ENTRIES ── */
+.log-entry { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+.log-entry-date { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+.log-entry-trigger { font-family: var(--serif); font-size: 14px; color: var(--text-primary); margin-bottom: 8px; line-height: 1.5; }
+.log-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { font-size: 10px; padding: 2px 8px; border-radius: 8px; }
+
+/* ── DAILY JOURNAL ── */
+.journal-date-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.date-nav-btn { background: none; border: 1px solid var(--border-mid); border-radius: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer; color: var(--text-secondary); }
+.journal-date { font-family: var(--serif); font-size: 16px; color: var(--navy); }
+.rating-row { display: flex; gap: 6px; align-items: center; }
+.rating-btn { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border-mid); background: var(--white); font-size: 12px; font-weight: 500; color: var(--text-secondary); cursor: pointer; transition: all 0.1s; }
+.rating-btn.selected { background: var(--dusty); color: var(--white); border-color: var(--dusty); }
+.export-row { display: flex; gap: 8px; margin-top: 16px; }
+.skill-rating-row { background:var(--xlit-blue); border-radius:10px; padding:10px 12px; }
+.skill-rating-row select { font-family:var(--sans); font-size:12px; border:1px solid var(--border-mid); border-radius:6px; padding:4px 8px; background:var(--white); color:var(--text-primary); outline:none; max-width:180px; }
+.effectiveness-slider { -webkit-appearance:none; appearance:none; width:100%; height:5px; border-radius:3px; background:linear-gradient(to right, var(--mid-blue) 0%, var(--mid-blue) 50%, var(--beige-lite) 50%); outline:none; cursor:pointer; }
+.effectiveness-slider::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:var(--dusty); cursor:pointer; border:2px solid var(--white); box-shadow:0 1px 4px rgba(0,0,0,0.15); }
+.effectiveness-slider::-moz-range-thumb { width:18px; height:18px; border-radius:50%; background:var(--dusty); cursor:pointer; border:2px solid var(--white); }
+.btn-export { flex: 1; padding: 10px; border: 1px solid var(--border-mid); border-radius: 8px; background: var(--white); font-size: 12px; font-family: var(--sans); cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; gap: 6px; }
+.btn-export:hover { background: var(--xlit-blue); color: var(--navy); }
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--navy); color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 100; }
+.toast.show { opacity: 1; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div id="overlay" onclick="closeDrawer()"></div>
+
+<nav id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-title">Schema<br>Tracker</div>
+    <div class="drawer-sub">Personal wellbeing</div>
+  </div>
+  <div class="drawer-nav">
+    <div class="nav-section">Overview</div>
+    <div class="nav-item active" onclick="navigate('dashboard', this)">
+      <span class="nav-icon">◈</span> Dashboard
+    </div>
+    <div class="nav-section">Daily Practice</div>
+    <div class="nav-item" onclick="navigate('coping', this)">
+      <span class="nav-icon">♡</span> Coping Cards
+    </div>
+    <div class="nav-item" onclick="navigate('modelog', this)">
+      <span class="nav-icon">✎</span> Mode Log
+    </div>
+    <div class="nav-item" onclick="navigate('journal', this)">
+      <span class="nav-icon">◎</span> Internal Resources
+    </div>
+    <div class="nav-section">Tracking</div>
+    <div class="nav-item" onclick="navigate('heatmap', this)">
+      <span class="nav-icon">▦</span> Skills Heatmap
+    </div>
+    <div class="nav-item" onclick="navigate('needs', this)">
+      <span class="nav-icon">◑</span> Needs & Schemas
+    </div>
+    <div class="nav-item" onclick="navigate('charts', this)">
+      <span class="nav-icon">◉</span> Charts
+    </div>
+    <div class="nav-section">Reflection</div>
+    <div class="nav-item" onclick="navigate('problem', this)">
+      <span class="nav-icon">◇</span> Problem Analysis
+    </div>
+    <div class="nav-item" onclick="navigate('corrective', this)">
+      <span class="nav-icon">✦</span> Corrective Experiences
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <div class="drawer-footer-text">Schema Therapy · DBT · v1.0</div>
+  </div>
+</nav>
+
+<header id="header">
+  <button id="menu-btn" onclick="toggleDrawer()" aria-label="Open menu">☰</button>
+  <div class="header-title" id="header-title">Dashboard</div>
+  <div class="header-date" id="header-date"></div>
+</header>
+
+<main id="main">
+
+<!-- ══ DASHBOARD ══ -->
+<div class="page active" id="page-dashboard">
+  <div class="page-title">Good morning</div>
+  <div class="page-sub" id="dash-date-sub"></div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-label">Entries this week</div>
+      <div class="stat-value" id="stat-entries">0</div>
+      <div class="stat-unit">mode log entries</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Skills today</div>
+      <div class="stat-value" id="stat-skills">0</div>
+      <div class="stat-unit">practices logged</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Safety rating</div>
+      <div class="stat-value" id="stat-safety">—</div>
+      <div class="stat-unit">last journal entry</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Coping streak</div>
+      <div class="stat-value" id="stat-streak">0</div>
+      <div class="stat-unit">days practising</div>
+    </div>
+  </div>
+
+  <div class="section-label">Recent modes</div>
+  <div class="card card-sm">
+    <div class="mode-badges" id="dash-modes">
+      <span style="font-size:13px; color:var(--text-muted); font-family:var(--serif); font-style:italic;">No entries yet — start logging in Mode Log</span>
+    </div>
+  </div>
+
+  <div class="section-label">Top unmet needs</div>
+  <div class="card card-sm" id="dash-needs">
+    <div style="font-size:13px; color:var(--text-muted); font-family:var(--serif); font-style:italic;">Log entries to see your needs pattern</div>
+  </div>
+
+  <div class="section-label">Skills this week</div>
+  <div class="card card-sm">
+    <div id="dash-skills-preview">
+      <div style="font-size:13px; color:var(--text-muted); font-family:var(--serif); font-style:italic;">Tap skills in Coping Cards to build your count</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:0;">
+    <div>
+      <div class="section-label">Most used skills</div>
+      <div class="card card-sm" id="dash-skill-freq">
+        <div style="font-size:12px;color:var(--text-muted);font-family:var(--serif);font-style:italic;">Log skills in mode entries</div>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Top 3 effective</div>
+      <div class="card card-sm" id="dash-skill-effective">
+        <div style="font-size:12px;color:var(--text-muted);font-family:var(--serif);font-style:italic;">Rate skills when logging</div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="section-label">Needs overview</div>
+  <div class="card" style="padding:10px;">
+    <canvas id="dash-spider" height="200"></canvas>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:0">
+    <div style="flex:1">
+      <div class="section-label">Skills radar</div>
+      <div class="card" style="padding:10px;">
+        <canvas id="dash-radar" height="180"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="export-row">
+    <button class="btn-export" onclick="exportCSV()">⬇ Export CSV</button>
+    <button class="btn-export" onclick="window.print()">⬇ Print / PDF</button>
+  </div>
+</div>
+
+<!-- ══ COPING CARDS ══ -->
+<div class="page" id="page-coping">
+  <div class="page-title editable-title" data-key="title-coping" onclick="editTitle(this)">Coping cards</div>
+  <div class="page-sub">Tap to log each time you practise a skill</div>
+  <div id="coping-cards-container"></div>
+  <button class="btn-add-card" onclick="showAddCardModal()">+ Add coping card</button>
+</div>
+
+<!-- ADD CARD MODAL -->
+<div id="add-card-backdrop" style="display:none;position:fixed;inset:0;background:rgba(44,62,107,0.4);z-index:200;overflow-y:auto;padding:40px 16px;">
+  <div style="background:var(--white);border-radius:16px;padding:24px;max-width:480px;margin:0 auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+      <div style="font-family:var(--serif);font-size:20px;font-weight:400;color:var(--navy)">New coping card</div>
+      <button onclick="hideAddCardModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Skill name</label>
+      <input class="form-input" id="nc-name" placeholder="e.g. Opposite Action, TIPP, Wise Mind...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Reminder text</label>
+      <textarea class="form-textarea" id="nc-reminder" placeholder="A short description or cue to help you remember how to use this skill..." style="min-height:80px"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Steps (one per line)</label>
+      <textarea class="form-textarea" id="nc-steps" placeholder="Step 1&#10;Step 2&#10;Step 3" style="min-height:90px"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Accent colour</label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;" id="nc-color-row">
+        <div class="color-swatch selected" style="background:#8FAFC9" data-color="#8FAFC9" onclick="selectAccent(this)"></div>
+        <div class="color-swatch" style="background:#A8C0A0" data-color="#A8C0A0" onclick="selectAccent(this)"></div>
+        <div class="color-swatch" style="background:#C9A8C0" data-color="#C9A8C0" onclick="selectAccent(this)"></div>
+        <div class="color-swatch" style="background:#D4B896" data-color="#D4B896" onclick="selectAccent(this)"></div>
+        <div class="color-swatch" style="background:#8FAFC9" data-color="#B8A8C8" onclick="selectAccent(this)" style="background:#B8A8C8"></div>
+        <div class="color-swatch" style="background:#C8A8A8" data-color="#C8A8A8" onclick="selectAccent(this)"></div>
+        <div class="color-swatch" style="background:#A8C8C0" data-color="#A8C8C0" onclick="selectAccent(this)"></div>
+        <input type="color" id="nc-custom-color" value="#8FAFC9" style="width:32px;height:32px;border:none;border-radius:50%;cursor:pointer;padding:0;" title="Custom colour">
+      </div>
+    </div>
+    <button class="btn-submit" onclick="saveNewCard()">Add card</button>
+  </div>
+</div>
+
+<!-- ══ MODE LOG ══ -->
+<div class="page" id="page-modelog">
+  <div class="page-title editable-title" data-key="title-modelog" onclick="editTitle(this)">Mode log</div>
+  <div class="page-sub">Record what's happening and how you responded</div>
+
+  <div class="card">
+    <div class="form-group">
+      <label class="form-label">Trigger / situation</label>
+      <textarea class="form-textarea" id="ml-trigger" placeholder="What happened? What set this off?"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Thoughts & feelings</label>
+      <textarea class="form-textarea" id="ml-thoughts" placeholder="What went through your mind? What did you feel?"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Mode present</label>
+      <div class="multiselect-container" id="ms-mode"></div>
+      <div class="selected-pills" id="pills-mode"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Unmet need</label>
+      <div class="multiselect-container" id="ms-need"></div>
+      <div class="selected-pills" id="pills-need"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Schema activated</label>
+      <div class="multiselect-container" id="ms-schema"></div>
+      <div class="selected-pills" id="pills-schema"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Response used</label>
+      <textarea class="form-textarea" id="ml-response" placeholder="What did you do? How did you cope?"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Healthy adult action</label>
+      <textarea class="form-textarea" id="ml-healthy" placeholder="What would your Healthy Adult do or say?"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Intensity (1–10)</label>
+      <div class="intensity-row" id="intensity-row"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Skills used in this moment</label>
+      <div id="ml-skills-container" style="display:flex;flex-direction:column;gap:10px;"></div>
+      <button type="button" onclick="addSkillRating()" style="margin-top:8px;background:none;border:1px dashed var(--border-mid);border-radius:8px;padding:7px 14px;font-size:12px;color:var(--dusty);cursor:pointer;width:100%;">+ Add skill used</button>
+    </div>
+    <button class="btn-submit" onclick="submitModeLog()">Save entry</button>
+  </div>
+
+  <div class="section-label" id="log-history-label" style="display:none">Recent entries</div>
+  <div id="log-entries"></div>
+</div>
+
+<!-- ══ INTERNAL RESOURCES / JOURNAL ══ -->
+<div class="page" id="page-journal">
+  <div class="page-title editable-title" data-key="title-journal" onclick="editTitle(this)">Internal resources</div>
+  <div class="page-sub">Daily safe place & memory log</div>
+
+  <div class="journal-date-nav">
+    <button class="date-nav-btn" onclick="journalNav(-1)">← Prev</button>
+    <div class="journal-date" id="journal-date-display"></div>
+    <button class="date-nav-btn" onclick="journalNav(1)">Next →</button>
+  </div>
+
+  <div class="card">
+    <div class="form-group">
+      <label class="form-label">Safe place — what did you visualise?</label>
+      <textarea class="form-textarea" id="j-safe" placeholder="Describe your safe place, what you see, hear, smell..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Positive memory — what came to mind?</label>
+      <textarea class="form-textarea" id="j-memory" placeholder="A memory where you felt genuinely safe or connected..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Body sensations</label>
+      <textarea class="form-textarea" id="j-body" placeholder="What did you notice in your body?" style="min-height:60px"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Emotion felt</label>
+      <input class="form-input" id="j-emotion" placeholder="e.g. calm, warmth, relief...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Then vs now — how does safety feel different today?</label>
+      <textarea class="form-textarea" id="j-thennow" placeholder="What does the present actually show compared to the past?"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Safety rating</label>
+      <div class="rating-row" id="safety-rating-row"></div>
+    </div>
+    <button class="btn-submit" onclick="saveJournal()">Save today's entry</button>
+  </div>
+</div>
+
+<!-- ══ HEATMAP ══ -->
+<div class="page" id="page-heatmap">
+  <div class="page-title editable-title" data-key="title-heatmap" onclick="editTitle(this)">Skills heatmap</div>
+  <div class="page-sub">Each row is one week · tap a cell to mark practice</div>
+
+  <div id="heatmap-skills-container"></div>
+
+  <button class="btn-add-card" style="margin-top:4px" onclick="showAddSkillModal()">+ Add skill to heatmap</button>
+</div>
+
+<!-- ADD SKILL MODAL -->
+<div id="add-skill-backdrop" style="display:none;position:fixed;inset:0;background:rgba(44,62,107,0.4);z-index:200;overflow-y:auto;padding:40px 16px;">
+  <div style="background:var(--white);border-radius:16px;padding:24px;max-width:420px;margin:0 auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+      <div style="font-family:var(--serif);font-size:20px;font-weight:400;color:var(--navy)">Add skill to heatmap</div>
+      <button onclick="hideAddSkillModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Skill name</label>
+      <input class="form-input" id="hs-name" placeholder="e.g. Opposite Action, PLEASE, Radical Acceptance...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Accent colour</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="hs-color-row">
+        <div class="color-swatch selected" style="background:#8FAFC9" data-color="#8FAFC9" onclick="selectHSAccent(this)"></div>
+        <div class="color-swatch" style="background:#A8C0A0" data-color="#A8C0A0" onclick="selectHSAccent(this)"></div>
+        <div class="color-swatch" style="background:#C9A8C0" data-color="#C9A8C0" onclick="selectHSAccent(this)"></div>
+        <div class="color-swatch" style="background:#D4B896" data-color="#D4B896" onclick="selectHSAccent(this)"></div>
+        <div class="color-swatch" style="background:#B8A8C8" data-color="#B8A8C8" onclick="selectHSAccent(this)"></div>
+        <div class="color-swatch" style="background:#A8C8C0" data-color="#A8C8C0" onclick="selectHSAccent(this)"></div>
+        <input type="color" id="hs-custom-color" value="#8FAFC9" style="width:32px;height:32px;border:none;border-radius:50%;cursor:pointer;padding:0;">
+      </div>
+    </div>
+    <button class="btn-submit" onclick="saveNewHeatmapSkill()">Add to heatmap</button>
+  </div>
+</div>
+
+<!-- ══ NEEDS & SCHEMAS ══ -->
+<div class="page" id="page-needs">
+  <div class="page-title editable-title" data-key="title-needs" onclick="editTitle(this)">Needs & schemas</div>
+  <div class="page-sub">Tally activations from your mode log</div>
+
+  <div class="section-label">Unmet needs — tally</div>
+  <div id="needs-tally-container"></div>
+
+  <div class="section-label" style="margin-top:20px">Schema activations — tally</div>
+  <div id="schema-tally-container"></div>
+</div>
+
+<!-- ══ PROBLEM ANALYSIS ══ -->
+<div class="page" id="page-problem">
+  <div class="page-title editable-title" data-key="title-problem" onclick="editTitle(this)">Problem analysis</div>
+  <div class="page-sub">Schema therapy homework form</div>
+  <div class="card">
+    <div class="form-group">
+      <label class="form-label">Describe the problem</label>
+      <textarea class="form-textarea" id="pa-problem" placeholder="What is the problem you want to work on?"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Schema / beliefs involved — connected memories?</label>
+      <textarea class="form-textarea" id="pa-schema" placeholder="Which schemas are activated? What memories come up?"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Situations I am triggered in</label>
+      <textarea class="form-textarea" id="pa-triggers" placeholder="When and where does this tend to happen?"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">How is vulnerable child mode involved? Feelings, needs?</label>
+      <textarea class="form-textarea" id="pa-vulnerable"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Is another child mode involved? (Angry / Impulsive / Undisciplined)</label>
+      <textarea class="form-textarea" id="pa-child"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Is a critic mode involved? (Punitive / Demanding)</label>
+      <textarea class="form-textarea" id="pa-critic"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Is an unhelpful coping mode involved? How?</label>
+      <textarea class="form-textarea" id="pa-coping"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">What do you usually do and what is the result?</label>
+      <textarea class="form-textarea" id="pa-usual"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Is your underlying need met?</label>
+      <textarea class="form-textarea" id="pa-need" style="min-height:60px"></textarea>
+    </div>
+    <div style="background:var(--xlit-blue); border-radius:8px; padding:10px 12px; margin:16px 0 12px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--dusty); font-weight:500;">Change plan — first steps</div>
+    <div class="form-group">
+      <label class="form-label">What do I want to change? Goals for each part</label>
+      <textarea class="form-textarea" id="pa-change"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">How can my healthy adult mode help?</label>
+      <textarea class="form-textarea" id="pa-healthy"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">How can my therapist help?</label>
+      <textarea class="form-textarea" id="pa-therapist"></textarea>
+    </div>
+    <button class="btn-submit" onclick="saveProblemAnalysis()">Save & log to history</button>
+  </div>
+  <div class="section-label" id="pa-history-label" style="display:none">History</div>
+  <div id="pa-history"></div>
+</div>
+
+<!-- ══ CORRECTIVE EXPERIENCES ══ -->
+<div class="page" id="page-corrective">
+  <div class="page-title editable-title" data-key="title-corrective" onclick="editTitle(this)">Corrective experiences</div>
+  <div class="page-sub">Log experiences that challenge old schemas</div>
+  <div class="card">
+    <div class="form-group">
+      <label class="form-label">What happened</label>
+      <textarea class="form-textarea" id="ce-what" placeholder="Describe the experience..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Schema it challenges</label>
+      <div class="multiselect-container" id="ms-ce-schema"></div>
+      <div class="selected-pills" id="pills-ce-schema"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Old belief</label>
+      <textarea class="form-textarea" id="ce-old" placeholder="What did you used to believe?" style="min-height:60px"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">New evidence / meaning</label>
+      <textarea class="form-textarea" id="ce-new" placeholder="What does this experience show instead?"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Emotion felt</label>
+      <input class="form-input" id="ce-emotion" placeholder="e.g. surprise, relief, warmth...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Intensity (1–10)</label>
+      <div class="intensity-row" id="ce-intensity-row"></div>
+    </div>
+    <button class="btn-submit" onclick="saveCorrective()">Save experience</button>
+  </div>
+  <div class="section-label" id="ce-history-label" style="display:none">Logged experiences</div>
+  <div id="ce-history"></div>
+</div>
+
+<!-- CHARTS PAGE -->
+<div class="page" id="page-charts">
+  <div class="page-title editable-title" data-key="title-charts" onclick="editTitle(this)">Charts</div>
+  <div class="page-sub">Your patterns visualised — updates as you log</div>
+
+  <div class="section-label">Unmet needs — spider chart</div>
+  <div class="card" style="padding: 12px;">
+    <canvas id="chart-spider" height="300"></canvas>
+    <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:8px;font-family:var(--serif);font-style:italic">5 need groups · log entries to populate</div>
+  </div>
+
+  <div class="section-label">Schema activations — frequency</div>
+  <div class="card" style="padding: 12px;">
+    <canvas id="chart-schema" height="420"></canvas>
+    <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:8px;font-family:var(--serif);font-style:italic">18 schemas · tally in Needs and Schemas to populate</div>
+  </div>
+
+  <div class="section-label">Skills progress</div>
+  <div class="card" id="chart-skills-bars" style="padding: 16px;">
+    <div style="font-size:13px;color:var(--text-muted);font-family:var(--serif);font-style:italic;">Log skills in Coping Cards to see progress</div>
+  </div>
+
+  <div class="section-label">Corrective experiences — schemas challenged</div>
+  <div class="card" style="padding: 12px;">
+    <canvas id="chart-corrective" height="380"></canvas>
+    <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:8px;font-family:var(--serif);font-style:italic">Each bar = number of corrective experiences logged for that schema</div>
+  </div>
+
+  <div class="section-label" style="margin-top:4px">Recent corrective experiences</div>
+  <div id="chart-corrective-recent"></div>
+</div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const MODES = ["Vulnerable Child","Lonely Child","Abandoned Child","Angry Child","Enraged Child","Impulsive Child","Undisciplined Child","Happy Child","Punitive Critic","Demanding Critic","Compliant Surrender","Detached Protector","Detached Self-Soother","Self-Aggrandiser","Bully & Attack","Conning & Manipulation","Healthy Adult"];
+const NEEDS = ["To be seen and heard","To be understood","To be validated","To be loved and wanted","To feel connected","To feel safe and secure","To express how you feel or think","To express what you like or dislike","To ask for what you need or want","To make choices","Opportunities for independence","Opportunities for challenge and stimulation","Opportunities to develop competence","Opportunities for self-development","To receive constructive feedback","Opportunities for fun and silliness","Opportunities for self-expression","Opportunities for exploration and adventure","Opportunities for imagination and creativity","To practise self control","To be self-disciplined","To take responsibility for our actions"];
+const SCHEMAS = ["Abandonment / Instability","Mistrust / Abuse","Emotional Deprivation","Defectiveness / Shame","Social Isolation","Dependence / Incompetence","Vulnerability to Harm or Illness","Enmeshment / Undeveloped Self","Failure","Entitlement / Grandiosity","Insufficient Self-Control / Self-Discipline","Subjugation","Self-Sacrifice","Approval-Seeking / Recognition-Seeking","Negativity / Pessimism","Emotional Inhibition","Unrelenting Standards / Hypercriticalness","Punitiveness"];
+const DEFAULT_SKILLS = [
+  { name: "Self-Validation", accent: "#8FAFC9", reminder: "Notice what you're feeling. Name it without judgment. Your feelings make sense given what you've been through.", steps: ["Pause and name the feeling", "Say it without judgment", "'It makes sense I feel this way'"] },
+  { name: "FAST (Self-Respect)", accent: "#A8C0A0", reminder: "Be Fair, no unnecessary Apologies, Stick to your values, be Truthful. Hold your ground with kindness.", steps: ["Fair to yourself and others", "No unnecessary apologies", "Stick to your values", "Be truthful"] },
+  { name: "Grounding / Mindfulness", accent: "#C9A8C0", reminder: "Come back to the present moment. Feel your feet on the floor. Name what you can see around you right now.", steps: ["Feel feet on the floor", "Take 3 slow breaths", "Name 5 things you can see"] },
+];
+let SKILLS = store ? (store.get('customSkills', null) || DEFAULT_SKILLS) : DEFAULT_SKILLS;
+const LEVELS = [
+  { min:0, max:4, label:"Beginner", bg:"#EEF3F9", color:"#5B7FA6" },
+  { min:5, max:14, label:"Practising", bg:"#E8F0DC", color:"#5A7A2E" },
+  { min:15, max:29, label:"Building", bg:"#FDF3DC", color:"#8B6914" },
+  { min:30, max:49, label:"Skilled", bg:"#F0E8F8", color:"#6B3D8B" },
+  { min:50, max:Infinity, label:"Integrated", bg:"#FFE8EC", color:"#8B1A2E" },
+];
+
+const store = {
+  get: (k, def) => { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch { return def; } },
+  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+let modeLogs = store.get('modeLogs', []);
+let journalEntries = store.get('journalEntries', {});
+let copingCounts = store.get('copingCounts', DEFAULT_SKILLS.map(() => 0));
+let heatmapData = store.get('heatmapData', {});
+let needsTally = store.get('needsTally', {});
+let schemaTally = store.get('schemaTally', {});
+let problemHistory = store.get('problemHistory', []);
+let correctiveHistory = store.get('correctiveHistory', []);
+let copingImages = store.get('copingImages', DEFAULT_SKILLS.map(() => []));
+let journalOffset = 0;
+let selectedIntensity = null;
+let selectedCEIntensity = null;
+let multiSelects = {};
+
+function save() {
+  store.set('modeLogs', modeLogs);
+  store.set('journalEntries', journalEntries);
+  store.set('copingCounts', copingCounts);
+  store.set('heatmapData', heatmapData);
+  store.set('needsTally', needsTally);
+  store.set('schemaTally', schemaTally);
+  store.set('problemHistory', problemHistory);
+  store.set('correctiveHistory', correctiveHistory);
+  store.set('copingImages', copingImages);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function toggleDrawer() {
+  document.getElementById('drawer').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('open');
+}
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+}
+function navigate(page, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.getElementById('header-title').textContent = el ? el.textContent.trim() : page;
+  closeDrawer();
+  if (page === 'dashboard') updateDashboard();
+  if (page === 'heatmap') renderHeatmap();
+  if (page === 'needs') renderTallies();
+  if (page === 'charts') renderAllCharts();
+  if (page === 'dashboard') { updateDashboard(); renderDashCharts(); }
+}
+
+function getLevel(n) { return LEVELS.find(l => n >= l.min && n <= l.max) || LEVELS[0]; }
+
+function buildMultiSelect(containerId, pillsId, items, key) {
+  const container = document.getElementById(containerId);
+  const pillsEl = document.getElementById(pillsId);
+  let selected = [];
+  let filter = '';
+
+  function render() {
+    const filtered = items.filter(i => i.toLowerCase().includes(filter.toLowerCase()));
+    container.innerHTML = `<input class="multiselect-search" placeholder="Search..." oninput="this.parentElement._filter(this.value)">` +
+      `<div class="multiselect-options">` +
+      filtered.map(item => {
+        const sel = selected.includes(item);
+        return `<div class="ms-option ${sel ? 'selected' : ''}" onclick="this.closest('.multiselect-container')._toggle('${item.replace(/'/g,"\\'")}')">
+          <div class="ms-checkbox ${sel ? 'checked' : ''}"></div>
+          <span>${item}</span>
+        </div>`;
+      }).join('') + `</div>`;
+    container._filter = (v) => { filter = v; render(); };
+    container._toggle = (item) => {
+      if (selected.includes(item)) selected = selected.filter(s => s !== item);
+      else selected.push(item);
+      render(); renderPills();
+    };
+    pillsEl.innerHTML = selected.map(s =>
+      `<div class="pill">${s}<span class="pill-x" onclick="(function(){var a=${JSON.stringify(selected)};var i=a.indexOf('${s.replace(/'/g,"\\'")}');if(i>-1)a.splice(i,1);document.getElementById('${containerId}')._toggle('${s.replace(/'/g,"\\'")}')})()">×</span></div>`
+    ).join('');
+  }
+
+  multiSelects[key] = { getSelected: () => selected, clear: () => { selected = []; filter = ''; render(); } };
+  render();
+}
+
+function buildIntensityRow(containerId, storeKey) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = Array.from({length:10}, (_,i) =>
+    `<button class="intensity-btn" onclick="selectIntensity(${i+1},'${containerId}','${storeKey}')">${i+1}</button>`
+  ).join('');
+}
+
+function selectIntensity(val, containerId, key) {
+  if (key === 'ml') selectedIntensity = val;
+  if (key === 'ce') selectedCEIntensity = val;
+  document.querySelectorAll(`#${containerId} .intensity-btn`).forEach((b,i) => {
+    b.classList.toggle('selected', i+1 === val);
+  });
+}
+
+function buildSafetyRating() {
+  const el = document.getElementById('safety-rating-row');
+  el.innerHTML = Array.from({length:10}, (_,i) =>
+    `<button class="rating-btn" onclick="selectRating(${i+1})">${i+1}</button>`
+  ).join('');
+}
+
+let selectedRating = null;
+function selectRating(val) {
+  selectedRating = val;
+  document.querySelectorAll('#safety-rating-row .rating-btn').forEach((b,i) => {
+    b.classList.toggle('selected', i+1 === val);
+  });
+}
+
+function renderCopingCards() {
+  const container = document.getElementById('coping-cards-container');
+  container.innerHTML = SKILLS.map((skill, i) => {
+    const level = getLevel(copingCounts[i]);
+    const imgs = copingImages[i] || [];
+    const hasImgs = imgs.length > 0;
+    return `<div class="coping-card" id="ccard-${i}">
+      <div class="gallery-wrap" id="gallery-wrap-${i}">
+        ${hasImgs ? `
+          <div class="gallery-track-outer">
+            <div class="gallery-track" id="gallery-track-${i}">
+              ${imgs.map((src, gi) => `<img class="gallery-img" src="${src}" alt="Coping image ${gi+1}">`).join('')}
+            </div>
+          </div>
+          ${imgs.length > 1 ? `
+            <button class="gallery-nav prev" onclick="galleryNav(${i},-1)" aria-label="Previous">‹</button>
+            <button class="gallery-nav next" onclick="galleryNav(${i},1)" aria-label="Next">›</button>
+            <div class="gallery-controls" id="gallery-dots-${i}">
+              ${imgs.map((_,gi) => `<div class="gallery-dot ${gi===0?'active':''}" onclick="galleryGoto(${i},${gi})"></div>`).join('')}
+            </div>` : ''}
+          <button class="gallery-del-btn" onclick="deleteGalleryImg(${i})" aria-label="Delete image">×</button>
+          <button class="gallery-add-btn" onclick="triggerImageUpload(${i})">+ Add image</button>
+        ` : `
+          <div class="gallery-empty" onclick="triggerImageUpload(${i})">
+            <div class="gallery-empty-icon">⊕</div>
+            <span>Tap to add an image</span>
+            <span style="font-size:11px;opacity:0.6">Safe place, calming scene, inspiration...</span>
+          </div>
+        `}
+        <input type="file" id="img-input-${i}" accept="image/*" multiple style="display:none" onchange="handleImageUpload(${i}, this)">
+      </div>
+      <div class="coping-accent" style="background:${skill.accent}"></div>
+      <div class="coping-name">${skill.name}</div>
+      <div class="coping-reminder">${skill.reminder}</div>
+      <div class="coping-steps">${skill.steps.map((s,j) =>
+        `<div class="coping-step"><div class="step-num">${j+1}</div><span>${s}</span></div>`
+      ).join('')}</div>
+      <div class="counter-row">
+        <div class="count-box">
+          <span class="count-num" id="ccount-${i}">${copingCounts[i]}</span>
+          <span class="count-lbl">uses</span>
+        </div>
+        <button class="btn-log" onclick="logSkill(${i})">+ Log practice</button>
+        <button class="btn-reset-sm" onclick="resetSkill(${i})">reset</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;">
+        <span class="level-pill" id="clevel-${i}" style="background:${level.bg};color:${level.color}">${level.label}</span>
+        ${i >= 3 ? `<button onclick="deleteCard(${i})" style="background:none;border:none;font-size:11px;color:var(--text-muted);cursor:pointer;text-decoration:underline;">remove card</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  SKILLS.forEach((_,i) => { galleryState[i] = 0; });
+}
+
+const galleryState = {};
+
+function galleryNav(cardIdx, dir) {
+  const imgs = copingImages[cardIdx] || [];
+  if (imgs.length < 2) return;
+  galleryState[cardIdx] = (galleryState[cardIdx] + dir + imgs.length) % imgs.length;
+  galleryGoto(cardIdx, galleryState[cardIdx]);
+}
+
+function galleryGoto(cardIdx, imgIdx) {
+  galleryState[cardIdx] = imgIdx;
+  const track = document.getElementById(`gallery-track-${cardIdx}`);
+  if (track) track.style.transform = `translateX(-${imgIdx * 100}%)`;
+  const dots = document.querySelectorAll(`#gallery-dots-${cardIdx} .gallery-dot`);
+  dots.forEach((d, i) => d.classList.toggle('active', i === imgIdx));
+}
+
+function triggerImageUpload(cardIdx) {
+  document.getElementById(`img-input-${cardIdx}`).click();
+}
+
+function handleImageUpload(cardIdx, input) {
+  const files = Array.from(input.files);
+  if (!files.length) return;
+  let loaded = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (!copingImages[cardIdx]) copingImages[cardIdx] = [];
+      copingImages[cardIdx].push(e.target.result);
+      loaded++;
+      if (loaded === files.length) {
+        try { save(); } catch(err) {
+          showToast('Images too large for storage — try smaller files');
+          copingImages[cardIdx].splice(-loaded);
+          return;
+        }
+        renderCopingCards();
+        galleryGoto(cardIdx, copingImages[cardIdx].length - 1);
+        showToast(`${loaded} image${loaded>1?'s':''} added ✓`);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function deleteGalleryImg(cardIdx) {
+  const imgs = copingImages[cardIdx] || [];
+  if (!imgs.length) return;
+  const current = galleryState[cardIdx] || 0;
+  imgs.splice(current, 1);
+  copingImages[cardIdx] = imgs;
+  save();
+  renderCopingCards();
+  showToast('Image removed');
+}
+
+function logSkill(i) {
+  copingCounts[i]++;
+  const today = new Date().toDateString();
+  if (!heatmapData[today]) heatmapData[today] = {};
+  heatmapData[today][SKILLS[i].name] = true;
+  save();
+  document.getElementById(`ccount-${i}`).textContent = copingCounts[i];
+  const level = getLevel(copingCounts[i]);
+  const pill = document.getElementById(`clevel-${i}`);
+  pill.textContent = level.label; pill.style.background = level.bg; pill.style.color = level.color;
+  showToast('Skill logged ✓');
+  updateDashboard();
+  renderDashCharts();
+  applyCustomTitles();
+}
+
+function resetSkill(i) {
+  copingCounts[i] = 0; save();
+  document.getElementById(`ccount-${i}`).textContent = 0;
+  const level = getLevel(0);
+  const pill = document.getElementById(`clevel-${i}`);
+  pill.textContent = level.label; pill.style.background = level.bg; pill.style.color = level.color;
+}
+
+function addSkillRating() {
+  const container = document.getElementById('ml-skills-container');
+  const idx = container.children.length;
+  const allSkillNames = SKILLS.map(s => s.name);
+  const extraHM = store.get('extraHeatmapSkills', []).map(s => s.name);
+  const skillOptions = [...new Set([...allSkillNames, ...extraHM])];
+  const row = document.createElement('div');
+  row.className = 'skill-rating-row';
+  row.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <select id="ml-skill-name-${idx}" style="flex:1;margin-right:8px;">
+        ${skillOptions.map(s => `<option value="${s}">${s}</option>`).join('')}
+      </select>
+      <button onclick="this.closest('.skill-rating-row').remove()" style="background:none;border:none;font-size:16px;cursor:pointer;color:var(--text-muted);padding:0 4px;">×</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">Effectiveness</span>
+      <input type="range" min="1" max="10" value="5" step="1"
+        class="effectiveness-slider" id="ml-skill-rating-${idx}"
+        oninput="updateSliderFill(this);document.getElementById('ml-skill-val-${idx}').textContent=this.value">
+      <span id="ml-skill-val-${idx}" style="font-family:var(--serif);font-size:16px;font-weight:300;color:var(--navy);min-width:20px;text-align:right;">5</span>
+      <span style="font-size:11px;color:var(--text-muted)">/10</span>
+    </div>`;
+  container.appendChild(row);
+  updateSliderFill(row.querySelector('.effectiveness-slider'));
+}
+
+function updateSliderFill(slider) {
+  const pct = ((slider.value - slider.min) / (slider.max - slider.min)) * 100;
+  slider.style.background = `linear-gradient(to right, var(--dusty) ${pct}%, var(--beige-lite) ${pct}%)`;
+}
+
+function collectSkillRatings() {
+  const container = document.getElementById('ml-skills-container');
+  return Array.from(container.children).map((row, idx) => {
+    const nameEl = row.querySelector(`[id^="ml-skill-name-"]`);
+    const ratingEl = row.querySelector(`[id^="ml-skill-rating-"]`);
+    return { skill: nameEl?.value || '', effectiveness: parseInt(ratingEl?.value || 5) };
+  }).filter(r => r.skill);
+}
+
+function submitModeLog() {
+  const trigger = document.getElementById('ml-trigger').value.trim();
+  if (!trigger) { showToast('Please describe the trigger'); return; }
+  const entry = {
+    date: new Date().toISOString(),
+    trigger, thoughts: document.getElementById('ml-thoughts').value,
+    modes: multiSelects['mode'].getSelected(),
+    needs: multiSelects['need'].getSelected(),
+    schemas: multiSelects['schema'].getSelected(),
+    response: document.getElementById('ml-response').value,
+    healthy: document.getElementById('ml-healthy').value,
+    intensity: selectedIntensity,
+    skillRatings: collectSkillRatings(),
+  };
+  entry.needs.forEach(n => { needsTally[n] = (needsTally[n]||0)+1; });
+  entry.schemas.forEach(s => { schemaTally[s] = (schemaTally[s]||0)+1; });
+  modeLogs.unshift(entry); save();
+  ['ml-trigger','ml-thoughts','ml-response','ml-healthy'].forEach(id => document.getElementById(id).value='');
+  multiSelects['mode'].clear(); multiSelects['need'].clear(); multiSelects['schema'].clear();
+  selectedIntensity = null;
+  document.getElementById('ml-skills-container').innerHTML = '';
+  document.querySelectorAll('#intensity-row .intensity-btn').forEach(b => b.classList.remove('selected'));
+  renderLogEntries(); updateDashboard(); showToast('Entry saved ✓');
+}
+
+function renderLogEntries() {
+  const container = document.getElementById('log-entries');
+  const label = document.getElementById('log-history-label');
+  if (!modeLogs.length) { container.innerHTML=''; label.style.display='none'; return; }
+  label.style.display='block';
+  const modeColors = {"Vulnerable Child":"#FFEEF6","Detached Protector":"#E8F0FB","Healthy Adult":"#E8F5E8","Punitive Critic":"#FFF5E6","Angry Child":"#FEF0F0"};
+  container.innerHTML = modeLogs.slice(0,5).map(e => `
+    <div class="log-entry">
+      <div class="log-entry-date">${new Date(e.date).toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+      <div class="log-entry-trigger">${e.trigger}</div>
+      <div class="log-chips">
+        ${e.modes.map(m => `<span class="chip" style="background:${modeColors[m]||'#EEF3F9'};color:var(--navy)">${m}</span>`).join('')}
+        ${e.needs.map(n => `<span class="chip" style="background:#F0E8F8;color:#5A2B7A">${n}</span>`).join('')}
+        ${e.schemas.map(s => `<span class="chip" style="background:var(--beige-lite);color:var(--navy)">${s}</span>`).join('')}
+        ${e.intensity ? `<span class="chip" style="background:var(--xlit-blue);color:var(--dusty)">Intensity: ${e.intensity}</span>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function getJournalDate(offset) {
+  const d = new Date(); d.setDate(d.getDate() + offset);
+  return d.toDateString();
+}
+function journalNav(dir) {
+  journalOffset += dir;
+  const dateKey = getJournalDate(journalOffset);
+  document.getElementById('journal-date-display').textContent = new Date(dateKey).toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'});
+  const entry = journalEntries[dateKey] || {};
+  document.getElementById('j-safe').value = entry.safe||'';
+  document.getElementById('j-memory').value = entry.memory||'';
+  document.getElementById('j-body').value = entry.body||'';
+  document.getElementById('j-emotion').value = entry.emotion||'';
+  document.getElementById('j-thennow').value = entry.thennow||'';
+  selectedRating = entry.rating||null;
+  document.querySelectorAll('#safety-rating-row .rating-btn').forEach((b,i) => b.classList.toggle('selected', i+1 === selectedRating));
+}
+function saveJournal() {
+  const dateKey = getJournalDate(journalOffset);
+  journalEntries[dateKey] = {
+    safe: document.getElementById('j-safe').value,
+    memory: document.getElementById('j-memory').value,
+    body: document.getElementById('j-body').value,
+    emotion: document.getElementById('j-emotion').value,
+    thennow: document.getElementById('j-thennow').value,
+    rating: selectedRating,
+  };
+  save(); showToast('Journal entry saved ✓');
+  updateDashboard();
+}
+
+function renderHeatmap() {
+  const container = document.getElementById('heatmap-skills-container');
+  if (!container) return;
+
+  const DAY_LABELS = ['M','T','W','T','F','S','S'];
+  const WEEKS = 4;
+
+  // Build 4 complete Mon-Sun weeks ending this week
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0=Sun
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const thisMonday = new Date(today);
+  thisMonday.setDate(today.getDate() + mondayOffset);
+
+  // weeks[0] = oldest week (3 weeks ago), weeks[3] = current week
+  const weeks = Array.from({length: WEEKS}, (_, wi) => {
+    const weekStart = new Date(thisMonday);
+    weekStart.setDate(thisMonday.getDate() - (WEEKS - 1 - wi) * 7);
+    return Array.from({length: 7}, (__, di) => {
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + di);
+      return d;
+    });
+  });
+
+  const allSkills = getHeatmapSkills();
+
+  container.innerHTML = allSkills.map((skill, si) => {
+    const totalChecked = weeks.flat().filter(d => heatmapData[d.toDateString()]?.[skill.name]).length;
+    const accent = skill.accent || '#8FAFC9';
+    const accentLight = accent + '33';
+
+    return `<div class="card" style="padding:12px 14px;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:10px;height:10px;border-radius:50%;background:${accent};flex-shrink:0;"></div>
+          <div style="font-family:var(--serif);font-size:15px;font-weight:400;color:var(--navy)">${skill.name}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:11px;color:var(--text-muted)">${totalChecked}/28 days</span>
+          ${si >= 3 ? `<button onclick="removeHeatmapSkill(${si})" style="background:none;border:none;font-size:11px;color:var(--text-muted);cursor:pointer;text-decoration:underline;">remove</button>` : ''}
+        </div>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <div style="min-width:200px;">
+          <div style="display:flex;gap:3px;margin-bottom:3px;margin-left:36px;">
+            ${DAY_LABELS.map(l => `<div class="hm-day-lbl" style="width:22px;flex-shrink:0;">${l}</div>`).join('')}
+          </div>
+          ${weeks.map((week, wi) => {
+            const weekLabel = wi === WEEKS-1 ? 'This' : wi === WEEKS-2 ? 'Last' : `${WEEKS-1-wi}w ago`;
+            return `<div style="display:flex;align-items:center;gap:3px;margin-bottom:3px;">
+              <div style="font-size:9px;color:var(--text-muted);width:32px;flex-shrink:0;text-align:right;padding-right:4px;">${weekLabel}</div>
+              ${week.map(d => {
+                const key = d.toDateString();
+                const checked = heatmapData[key]?.[skill.name];
+                const isToday = d.toDateString() === today.toDateString();
+                const isFuture = d > today;
+                return `<div
+                  class="hm-cell ${checked ? 'hm-checked' : 'hm-unchecked'} ${isFuture ? 'hm-future' : ''}"
+                  style="${checked ? `background:${accent};border-color:${accent};` : ''}${isToday ? 'border-color:var(--dusty);border-width:2px;' : ''}${isFuture ? 'opacity:0.3;cursor:default;' : ''}"
+                  onclick="${isFuture ? '' : `toggleHeatmap('${key}','${skill.name.replace(/'/g,"\\'")}',this,'${accent}')`}"
+                  title="${d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})}">
+                </div>`;
+              }).join('')}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function getHeatmapSkills() {
+  const base = SKILLS.map(s => ({ name: s.name, accent: s.accent }));
+  const extra = store.get('extraHeatmapSkills', []);
+  return [...base, ...extra];
+}
+
+function toggleHeatmap(key, skill, el, accent) {
+  if (!heatmapData[key]) heatmapData[key] = {};
+  if (heatmapData[key][skill]) {
+    delete heatmapData[key][skill];
+    el.style.background = '';
+    el.style.borderColor = '';
+    el.className = 'hm-cell hm-unchecked';
+  } else {
+    heatmapData[key][skill] = true;
+    el.style.background = accent || 'var(--dusty)';
+    el.style.borderColor = accent || 'var(--navy)';
+    el.className = 'hm-cell hm-checked';
+  }
+  save(); updateDashboard();
+}
+
+let selectedHSColor = '#8FAFC9';
+function showAddSkillModal() {
+  document.getElementById('hs-name').value = '';
+  selectedHSColor = '#8FAFC9';
+  document.querySelectorAll('#hs-color-row .color-swatch').forEach((s,i) => s.classList.toggle('selected', i===0));
+  document.getElementById('add-skill-backdrop').style.display = 'block';
+}
+function hideAddSkillModal() { document.getElementById('add-skill-backdrop').style.display = 'none'; }
+function selectHSAccent(el) {
+  document.querySelectorAll('#hs-color-row .color-swatch').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedHSColor = el.dataset.color;
+}
+function saveNewHeatmapSkill() {
+  const name = document.getElementById('hs-name').value.trim();
+  if (!name) { showToast('Please enter a skill name'); return; }
+  const customColor = document.getElementById('hs-custom-color').value;
+  const accent = selectedHSColor !== '#8FAFC9' ? selectedHSColor : customColor;
+  const extra = store.get('extraHeatmapSkills', []);
+  extra.push({ name, accent });
+  store.set('extraHeatmapSkills', extra);
+  hideAddSkillModal();
+  renderHeatmap();
+  showToast(name + ' added to heatmap ✓');
+}
+function removeHeatmapSkill(idx) {
+  const allSkills = getHeatmapSkills();
+  const skill = allSkills[idx];
+  if (!skill) return;
+  const extra = store.get('extraHeatmapSkills', []);
+  const extraIdx = idx - 3; // first 3 are base SKILLS
+  if (extraIdx >= 0) {
+    extra.splice(extraIdx, 1);
+    store.set('extraHeatmapSkills', extra);
+    renderHeatmap();
+    showToast('Skill removed from heatmap');
+  }
+}
+
+function renderTallies() {
+  const nc = document.getElementById('needs-tally-container');
+  nc.innerHTML = NEEDS.map(n => {
+    const count = needsTally[n]||0;
+    return `<div class="card card-sm" style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <div style="font-family:var(--serif);font-size:13px;color:var(--text-secondary);flex:1">${n}</div>
+      <button onclick="tally('need','${n.replace(/'/g,"\\'")}',this)" style="background:var(--xlit-blue);border:1px solid var(--border-mid);border-radius:8px;padding:4px 10px;font-size:13px;cursor:pointer;font-weight:500;color:var(--navy)">+</button>
+      <span style="font-family:var(--serif);font-size:18px;font-weight:300;color:var(--navy);min-width:24px;text-align:center">${count}</span>
+    </div>`;
+  }).join('');
+
+  const sc = document.getElementById('schema-tally-container');
+  sc.innerHTML = SCHEMAS.map(s => {
+    const count = schemaTally[s]||0;
+    return `<div class="card card-sm" style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <div style="font-family:var(--serif);font-size:13px;color:var(--text-secondary);flex:1">${s}</div>
+      <button onclick="tally('schema','${s.replace(/'/g,"\\'")}',this)" style="background:var(--xlit-blue);border:1px solid var(--border-mid);border-radius:8px;padding:4px 10px;font-size:13px;cursor:pointer;font-weight:500;color:var(--navy)">+</button>
+      <span style="font-family:var(--serif);font-size:18px;font-weight:300;color:var(--navy);min-width:24px;text-align:center" id="st-${s.replace(/[^a-z]/gi,'')}">${count}</span>
+    </div>`;
+  }).join('');
+}
+function tally(type, key, btn) {
+  if (type==='need') { needsTally[key]=(needsTally[key]||0)+1; }
+  if (type==='schema') { schemaTally[key]=(schemaTally[key]||0)+1; }
+  save();
+  const countEl = btn.nextElementSibling;
+  const newVal = type==='need' ? needsTally[key] : schemaTally[key];
+  countEl.textContent = newVal;
+  showToast('+1 logged');
+}
+
+function saveProblemAnalysis() {
+  const entry = {
+    date: new Date().toISOString(),
+    problem: document.getElementById('pa-problem').value,
+    schema: document.getElementById('pa-schema').value,
+    triggers: document.getElementById('pa-triggers').value,
+    vulnerable: document.getElementById('pa-vulnerable').value,
+    child: document.getElementById('pa-child').value,
+    critic: document.getElementById('pa-critic').value,
+    coping: document.getElementById('pa-coping').value,
+    usual: document.getElementById('pa-usual').value,
+    need: document.getElementById('pa-need').value,
+    change: document.getElementById('pa-change').value,
+    healthy: document.getElementById('pa-healthy').value,
+    therapist: document.getElementById('pa-therapist').value,
+  };
+  problemHistory.unshift(entry); save();
+  showToast('Problem analysis saved ✓');
+  renderPAHistory();
+}
+function renderPAHistory() {
+  const container = document.getElementById('pa-history');
+  const label = document.getElementById('pa-history-label');
+  if (!problemHistory.length) { container.innerHTML=''; label.style.display='none'; return; }
+  label.style.display='block';
+  container.innerHTML = problemHistory.map(e => `
+    <div class="log-entry">
+      <div class="log-entry-date">${new Date(e.date).toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'})}</div>
+      <div class="log-entry-trigger">${e.problem}</div>
+      ${e.schema ? `<div style="font-size:12px;color:var(--text-muted);margin-top:4px;font-family:var(--serif);font-style:italic">${e.schema}</div>` : ''}
+    </div>`).join('');
+}
+
+function saveCorrective() {
+  const what = document.getElementById('ce-what').value.trim();
+  if (!what) { showToast('Please describe what happened'); return; }
+  const entry = {
+    date: new Date().toISOString(),
+    what, schemas: multiSelects['ce-schema'].getSelected(),
+    oldBelief: document.getElementById('ce-old').value,
+    newEvidence: document.getElementById('ce-new').value,
+    emotion: document.getElementById('ce-emotion').value,
+    intensity: selectedCEIntensity,
+  };
+  correctiveHistory.unshift(entry); save();
+  ['ce-what','ce-old','ce-new','ce-emotion'].forEach(id => document.getElementById(id).value='');
+  multiSelects['ce-schema'].clear(); selectedCEIntensity=null;
+  document.querySelectorAll('#ce-intensity-row .intensity-btn').forEach(b=>b.classList.remove('selected'));
+  renderCEHistory(); showToast('Experience saved ✓');
+}
+function renderCEHistory() {
+  const container = document.getElementById('ce-history');
+  const label = document.getElementById('ce-history-label');
+  if (!correctiveHistory.length) { container.innerHTML=''; label.style.display='none'; return; }
+  label.style.display='block';
+  container.innerHTML = correctiveHistory.map(e => `
+    <div class="log-entry">
+      <div class="log-entry-date">${new Date(e.date).toLocaleDateString('en-AU',{day:'numeric',month:'long'})}</div>
+      <div class="log-entry-trigger">${e.what}</div>
+      ${e.newEvidence ? `<div style="font-size:12px;color:var(--text-muted);margin-top:4px;font-family:var(--serif);font-style:italic">"${e.newEvidence}"</div>` : ''}
+      <div class="log-chips" style="margin-top:6px">${e.schemas.map(s=>`<span class="chip" style="background:var(--beige-lite);color:var(--navy)">${s}</span>`).join('')}</div>
+    </div>`).join('');
+}
+
+function updateDashboard() {
+  const now = new Date();
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
+  const weekEntries = modeLogs.filter(e => new Date(e.date) >= weekStart);
+  document.getElementById('stat-entries').textContent = weekEntries.length;
+  const todayKey = now.toDateString();
+  const todaySkills = heatmapData[todayKey] ? Object.keys(heatmapData[todayKey]).length : 0;
+  document.getElementById('stat-skills').textContent = todaySkills;
+  const todayJournal = journalEntries[todayKey];
+  document.getElementById('stat-safety').textContent = todayJournal?.rating ? `${todayJournal.rating}/10` : '—';
+
+  let streak = 0;
+  for (let i=0; i<30; i++) {
+    const d = new Date(); d.setDate(d.getDate()-i);
+    const k = d.toDateString();
+    if (heatmapData[k] && Object.keys(heatmapData[k]).length > 0) streak++;
+    else break;
+  }
+  document.getElementById('stat-streak').textContent = streak;
+
+  const modesEl = document.getElementById('dash-modes');
+  const recentModes = [...new Set(modeLogs.flatMap(e=>e.modes))].slice(0,5);
+  const modeColors = {"Vulnerable Child":["#FFEEF6","#8B3A6B"],"Detached Protector":["#E8F0FB","#2C4770"],"Healthy Adult":["#E8F5E8","#2A5A2A"],"Punitive Critic":["#FFF5E6","#8B5A00"]};
+  modesEl.innerHTML = recentModes.length ? recentModes.map(m => {
+    const c = modeColors[m]||["#EEF3F9","#2C3E6B"];
+    return `<span class="badge" style="background:${c[0]};color:${c[1]}">${m}</span>`;
+  }).join('') : `<span style="font-size:13px;color:var(--text-muted);font-family:var(--serif);font-style:italic">No entries yet</span>`;
+
+  const needsEl = document.getElementById('dash-needs');
+  const topNeeds = Object.entries(needsTally).sort((a,b)=>b[1]-a[1]).slice(0,4);
+  const maxNeed = topNeeds[0]?.[1]||1;
+  needsEl.innerHTML = topNeeds.length ? topNeeds.map(([n,c]) =>
+    `<div class="need-row"><div class="need-name">${n}</div><div class="need-track"><div class="need-fill" style="width:${Math.round(c/maxNeed*100)}%"></div></div><div class="need-pct">${c}</div></div>`
+  ).join('') : `<div style="font-size:13px;color:var(--text-muted);font-family:var(--serif);font-style:italic">No needs logged yet</div>`;
+
+  // ── Skill frequency from mode log ratings
+  const freqEl = document.getElementById('dash-skill-freq');
+  const effectEl = document.getElementById('dash-skill-effective');
+  if (freqEl && effectEl) {
+    const allRatings = modeLogs.flatMap(e => e.skillRatings || []);
+    // Frequency count
+    const freqMap = {};
+    allRatings.forEach(r => { freqMap[r.skill] = (freqMap[r.skill] || 0) + 1; });
+    const freqSorted = Object.entries(freqMap).sort((a,b) => b[1]-a[1]).slice(0,3);
+    freqEl.innerHTML = freqSorted.length ? freqSorted.map(([skill, count], i) => {
+      const sk = SKILLS.find(s => s.name === skill);
+      const accent = sk?.accent || '#8FAFC9';
+      return `<div style="display:flex;align-items:center;gap:7px;margin-bottom:${i<freqSorted.length-1?'7px':'0'}">
+        <span style="font-size:12px;color:var(--text-muted);min-width:14px;font-weight:500;">${i+1}</span>
+        <div style="width:7px;height:7px;border-radius:50%;background:${accent};flex-shrink:0;"></div>
+        <div style="font-family:var(--serif);font-size:12px;color:var(--text-secondary);flex:1;line-height:1.3;">${skill}</div>
+        <span style="font-family:var(--serif);font-size:14px;font-weight:300;color:var(--navy);">${count}×</span>
+      </div>`;
+    }).join('') : '<div style="font-size:12px;color:var(--text-muted);font-family:var(--serif);font-style:italic;">Log skills in mode entries</div>';
+
+    // Average effectiveness per skill, top 3
+    const effectMap = {};
+    const effectCount = {};
+    allRatings.forEach(r => {
+      effectMap[r.skill] = (effectMap[r.skill] || 0) + r.effectiveness;
+      effectCount[r.skill] = (effectCount[r.skill] || 0) + 1;
+    });
+    const effectSorted = Object.entries(effectMap)
+      .map(([skill, total]) => ({ skill, avg: Math.round((total / effectCount[skill]) * 10) / 10 }))
+      .sort((a,b) => b.avg - a.avg).slice(0,3);
+    effectEl.innerHTML = effectSorted.length ? effectSorted.map((e, i) => {
+      const sk = SKILLS.find(s => s.name === e.skill);
+      const accent = sk?.accent || '#8FAFC9';
+      const starPct = Math.round((e.avg / 10) * 100);
+      return `<div style="margin-bottom:${i<effectSorted.length-1?'8px':'0'}">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+          <span style="font-size:12px;color:var(--text-muted);min-width:14px;font-weight:500;">${i+1}</span>
+          <div style="font-family:var(--serif);font-size:12px;color:var(--text-secondary);flex:1;line-height:1.3;">${e.skill}</div>
+          <span style="font-family:var(--serif);font-size:14px;font-weight:300;color:var(--navy);">${e.avg}</span>
+        </div>
+        <div style="margin-left:20px;height:4px;background:var(--beige-lite);border-radius:2px;overflow:hidden;">
+          <div style="height:100%;width:${starPct}%;background:${accent};border-radius:2px;"></div>
+        </div>
+      </div>`;
+    }).join('') : '<div style="font-size:12px;color:var(--text-muted);font-family:var(--serif);font-style:italic;">Rate skills when logging</div>';
+  }
+
+  const skillsEl = document.getElementById('dash-skills-preview');
+  const nextThreshold = (n) => {
+    if (n < 5) return 5; if (n < 15) return 15; if (n < 30) return 30; if (n < 50) return 50; return 50;
+  };
+  skillsEl.innerHTML = SKILLS.map((s,i) => {
+    const count = copingCounts[i] || 0;
+    const level = getLevel(count);
+    const next = nextThreshold(count);
+    const pct = Math.min(100, Math.round((count / next) * 100));
+    return `<div style="margin-bottom:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:${s.accent};flex-shrink:0"></div>
+          <div style="font-family:var(--serif);font-size:13px;color:var(--text-secondary)">${s.name}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:11px;padding:2px 8px;border-radius:8px;background:${level.bg};color:${level.color};font-weight:500">${level.label}</span>
+          <span style="font-family:var(--serif);font-size:14px;font-weight:300;color:var(--navy)">${count}</span>
+        </div>
+      </div>
+      <div style="height:6px;background:var(--beige-lite);border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:${s.accent};border-radius:3px;transition:width 0.4s ease;"></div>
+      </div>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:2px;text-align:right">${count} / ${next} to next level</div>
+    </div>`;
+  }).join('');
+}
+
+function exportCSV() {
+  const headers = ['Date','Trigger','Thoughts','Modes','Needs','Schemas','Response','Healthy Adult','Intensity','Skills Used','Effectiveness Ratings'];
+  const rows = modeLogs.map(e => [
+    new Date(e.date).toLocaleDateString('en-AU'), e.trigger, e.thoughts,
+    e.modes.join('; '), e.needs.join('; '), e.schemas.join('; '),
+    e.response, e.healthy, e.intensity||'',
+    (e.skillRatings||[]).map(r=>r.skill).join('; '),
+    (e.skillRatings||[]).map(r=>`${r.skill}:${r.effectiveness}`).join('; ')
+  ].map(v => `"${String(v||'').replace(/"/g,'""')}"`));
+  const csv = [headers, ...rows].map(r=>r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = `schema-log-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); showToast('CSV downloaded');
+}
+
+
+// ── CHART INSTANCES ──────────────────────────────────────────────────────────
+let chartInstances = {};
+
+const NEED_GROUPS = {
+  'Attachment': ['To be seen and heard','To be understood','To be validated','To be loved and wanted','To feel connected','To feel safe and secure'],
+  'Freedom': ['To express how you feel or think','To express what you like or dislike','To ask for what you need or want','To make choices'],
+  'Autonomy': ['Opportunities for independence','Opportunities for challenge and stimulation','Opportunities to develop competence','Opportunities for self-development','To receive constructive feedback'],
+  'Spontaneity & Play': ['Opportunities for fun and silliness','Opportunities for self-expression','Opportunities for exploration and adventure','Opportunities for imagination and creativity'],
+  'Boundaries': ['To practise self control','To be self-disciplined','To take responsibility for our actions'],
+};
+
+function getNeedGroupTotals() {
+  return Object.entries(NEED_GROUPS).map(([group, needs]) => ({
+    group,
+    total: needs.reduce((sum, n) => sum + (needsTally[n] || 0), 0)
+  }));
+}
+
+function destroyChart(key) {
+  if (chartInstances[key]) { chartInstances[key].destroy(); delete chartInstances[key]; }
+}
+
+function renderSpiderChart(canvasId, key) {
+  destroyChart(key);
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const groups = getNeedGroupTotals();
+  const labels = groups.map(g => g.group);
+  const data = groups.map(g => g.total);
+  const hasData = data.some(v => v > 0);
+  chartInstances[key] = new Chart(canvas, {
+    type: 'radar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Unmet needs',
+        data: hasData ? data : [1,1,1,1,1],
+        backgroundColor: 'rgba(143,175,201,0.25)',
+        borderColor: '#5B7FA6',
+        borderWidth: 2,
+        pointBackgroundColor: '#5B7FA6',
+        pointRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        r: {
+          beginAtZero: true,
+          ticks: { display: false, stepSize: 1 },
+          grid: { color: 'rgba(91,127,166,0.15)' },
+          angleLines: { color: 'rgba(91,127,166,0.2)' },
+          pointLabels: {
+            font: { family: "'Cormorant Garamond', serif", size: 12 },
+            color: '#5C5C5C',
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderSkillsRadar(canvasId, key) {
+  destroyChart(key);
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const hasData = copingCounts.some(v => v > 0);
+  chartInstances[key] = new Chart(canvas, {
+    type: 'radar',
+    data: {
+      labels: SKILLS.map(s => s.name.split(' ')[0]),
+      datasets: [{
+        label: 'Practice count',
+        data: hasData ? copingCounts.slice(0, SKILLS.length) : SKILLS.map(() => 1),
+        backgroundColor: 'rgba(201,168,192,0.25)',
+        borderColor: '#C9A8C0',
+        borderWidth: 2,
+        pointBackgroundColor: '#8B4A6B',
+        pointRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        r: {
+          beginAtZero: true,
+          ticks: { display: false },
+          grid: { color: 'rgba(201,168,192,0.2)' },
+          angleLines: { color: 'rgba(201,168,192,0.3)' },
+          pointLabels: {
+            font: { family: "'Cormorant Garamond', serif", size: 13 },
+            color: '#5C5C5C',
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderSkillsProgressBars() {
+  const container = document.getElementById('chart-skills-bars');
+  if (!container) return;
+  const nextThreshold = n => { if(n<5)return 5;if(n<15)return 15;if(n<30)return 30;if(n<50)return 50;return 50; };
+  const LEVEL_NAMES = ['Beginner','Practising','Building','Skilled','Integrated'];
+  const LEVEL_MINS = [0,5,15,30,50];
+
+  container.innerHTML = SKILLS.map((s, i) => {
+    const count = copingCounts[i] || 0;
+    const level = getLevel(count);
+    const next = nextThreshold(count);
+    const pct = Math.min(100, Math.round((count / next) * 100));
+
+    const levelBars = LEVEL_MINS.map((min, li) => {
+      const lname = LEVEL_NAMES[li];
+      const active = count >= min;
+      const isCurrent = level.label === lname;
+      return `<div style="flex:1;height:4px;border-radius:2px;background:${active ? s.accent : 'var(--beige-lite)'};${isCurrent ? 'height:6px;' : ''}"></div>`;
+    });
+
+    return `<div style="margin-bottom:20px;">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;">
+        <div style="display:flex;align-items:center;gap:7px;">
+          <div style="width:10px;height:10px;border-radius:50%;background:${s.accent};flex-shrink:0;"></div>
+          <div style="font-family:var(--serif);font-size:15px;color:var(--navy);font-weight:400;">${s.name}</div>
+        </div>
+        <span style="font-size:11px;padding:2px 10px;border-radius:10px;background:${level.bg};color:${level.color};font-weight:500;">${level.label}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <div style="flex:1;height:10px;background:var(--beige-lite);border-radius:5px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${s.accent};border-radius:5px;transition:width 0.5s ease;"></div>
+        </div>
+        <span style="font-family:var(--serif);font-size:16px;font-weight:300;color:var(--navy);min-width:32px;text-align:right;">${count}</span>
+      </div>
+      <div style="display:flex;gap:3px;margin-bottom:3px;">${levelBars.join('')}</div>
+      <div style="display:flex;justify-content:space-between;">
+        <span style="font-size:10px;color:var(--text-muted);">0</span>
+        ${LEVEL_MINS.slice(1).map(m => `<span style="font-size:10px;color:var(--text-muted);">${m}</span>`).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:3px;font-family:var(--serif);font-style:italic;">
+        ${count >= 50 ? 'Fully integrated' : `${next - count} more to reach ${LEVEL_NAMES[LEVEL_MINS.indexOf(next)]}`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+const SCHEMA_DOMAIN_COLORS = [
+  '#D4A5B5','#D4A5B5','#D4A5B5','#D4A5B5','#D4A5B5',
+  '#B5C8D4','#B5C8D4','#B5C8D4','#B5C8D4',
+  '#D4CDB5','#D4CDB5',
+  '#C8B5D4','#C8B5D4','#C8B5D4',
+  '#B5D4C0','#B5D4C0','#B5D4C0','#B5D4C0',
+];
+
+function renderSchemaBar(canvasId, key) {
+  destroyChart(key);
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const data = SCHEMAS.map(s => schemaTally[s] || 0);
+  chartInstances[key] = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: SCHEMAS.map(s => s.length > 28 ? s.slice(0,26) + '...' : s),
+      datasets: [{
+        label: 'Activations',
+        data,
+        backgroundColor: SCHEMA_DOMAIN_COLORS,
+        borderColor: SCHEMA_DOMAIN_COLORS.map(c => c),
+        borderWidth: 0,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ' ' + SCHEMAS[ctx.dataIndex] + ': ' + ctx.raw
+          }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { stepSize: 1, font: { family: "'DM Sans', sans-serif", size: 11 } },
+          grid: { color: 'rgba(91,127,166,0.1)' }
+        },
+        y: {
+          ticks: { font: { family: "'Cormorant Garamond', serif", size: 11 }, color: '#5C5C5C' },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+function renderAllCharts() {
+  renderSpiderChart('chart-spider', 'spider-full');
+  renderSchemaBar('chart-schema', 'schema-full');
+  renderSkillsProgressBars();
+  renderCorrectiveChart();
+}
+
+function renderCorrectiveChart() {
+  destroyChart('corrective-full');
+  const canvas = document.getElementById('chart-corrective');
+  if (!canvas) return;
+
+  // Count how many corrective experiences reference each schema
+  const counts = {};
+  correctiveHistory.forEach(e => {
+    (e.schemas || []).forEach(s => { counts[s] = (counts[s] || 0) + 1; });
+  });
+
+  // Only show schemas that have at least one entry, sorted descending
+  const entries = SCHEMAS
+    .map((s, i) => ({ schema: s, count: counts[s] || 0, colorIdx: i }))
+    .filter(e => e.count > 0)
+    .sort((a, b) => b.count - a.count);
+
+  if (!entries.length) {
+    canvas.style.display = 'none';
+    const placeholder = canvas.nextElementSibling;
+    if (placeholder) placeholder.textContent = 'No corrective experiences logged yet — add entries in Corrective Experiences';
+    return;
+  }
+  canvas.style.display = 'block';
+
+  // Domain colours matching schema order
+  const DOMAIN_COLORS = [
+    '#D4A5B5','#D4A5B5','#D4A5B5','#D4A5B5','#D4A5B5', // Disconnection & Rejection
+    '#B5C8D4','#B5C8D4','#B5C8D4','#B5C8D4',           // Impaired Autonomy
+    '#D4CDB5','#D4CDB5',                                 // Impaired Limits
+    '#C8B5D4','#C8B5D4','#C8B5D4',                      // Other-Directedness
+    '#B5D4C0','#B5D4C0','#B5D4C0','#B5D4C0',            // Overvigilance
+  ];
+
+  const schemaColorMap = {};
+  SCHEMAS.forEach((s, i) => { schemaColorMap[s] = DOMAIN_COLORS[i]; });
+
+  // Resize canvas height to fit bars
+  canvas.height = Math.max(160, entries.length * 44);
+
+  chartInstances['corrective-full'] = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: entries.map(e => e.schema.length > 30 ? e.schema.slice(0, 28) + '...' : e.schema),
+      datasets: [{
+        label: 'Corrective experiences',
+        data: entries.map(e => e.count),
+        backgroundColor: entries.map(e => schemaColorMap[e.schema] || '#C9D8E8'),
+        borderColor: entries.map(e => schemaColorMap[e.schema] || '#8FAFC9'),
+        borderWidth: 0,
+        borderRadius: 5,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const count = ctx.raw;
+              return ` ${count} corrective experience${count !== 1 ? 's' : ''}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { stepSize: 1, font: { family: "'DM Sans', sans-serif", size: 11 } },
+          grid: { color: 'rgba(91,127,166,0.08)' },
+          title: { display: true, text: 'Number of experiences', font: { family: "'Cormorant Garamond', serif", size: 12 }, color: '#9B9B9B' }
+        },
+        y: {
+          ticks: { font: { family: "'Cormorant Garamond', serif", size: 12 }, color: '#5C5C5C' },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+
+  // Recent experiences cards
+  const recentEl = document.getElementById('chart-corrective-recent');
+  if (!recentEl) return;
+  const recent = correctiveHistory.slice(0, 3);
+  if (!recent.length) { recentEl.innerHTML = ''; return; }
+
+  recentEl.innerHTML = recent.map(e => {
+    const schemaColor = e.schemas?.[0] ? schemaColorMap[e.schemas[0]] : '#C9D8E8';
+    return `<div class="card" style="margin-bottom:10px;border-left:3px solid ${schemaColor};border-radius:0 12px 12px 0;padding:14px 16px;">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">
+        ${new Date(e.date).toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})}
+        ${e.schemas?.length ? `· <span style="color:var(--dusty)">${e.schemas[0]}</span>` : ''}
+      </div>
+      <div style="font-family:var(--serif);font-size:14px;color:var(--text-primary);line-height:1.5;margin-bottom:6px;">${e.what}</div>
+      ${e.newEvidence ? `<div style="font-family:var(--serif);font-size:13px;color:var(--text-secondary);font-style:italic;border-left:2px solid ${schemaColor};padding-left:10px;margin-top:6px;">"${e.newEvidence}"</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderDashCharts() {
+  renderSpiderChart('dash-spider', 'spider-dash');
+  renderSkillsRadar('dash-radar', 'radar-dash');
+}
+
+
+// ── EDITABLE TITLES ─────────────────────────────────────────────────────────
+let customTitles = store.get('customTitles', {});
+
+function editTitle(el) {
+  const key = el.dataset.key;
+  const current = customTitles[key] || el.textContent.trim();
+  const input = document.createElement('input');
+  input.className = 'title-input';
+  input.value = current;
+  el.replaceWith(input);
+  input.focus(); input.select();
+  function commit() {
+    const val = input.value.trim() || current;
+    customTitles[key] = val;
+    store.set('customTitles', customTitles);
+    const restored = document.createElement('div');
+    restored.className = 'page-title editable-title';
+    restored.dataset.key = key;
+    restored.textContent = val;
+    restored.onclick = function() { editTitle(this); };
+    input.replaceWith(restored);
+  }
+  input.onblur = commit;
+  input.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } if (e.key === 'Escape') { input.value = current; commit(); } };
+}
+
+function applyCustomTitles() {
+  document.querySelectorAll('.editable-title').forEach(el => {
+    const key = el.dataset.key;
+    if (customTitles[key]) el.textContent = customTitles[key];
+  });
+}
+
+// ── ADD COPING CARD ──────────────────────────────────────────────────────────
+let selectedAccentColor = '#8FAFC9';
+
+function showAddCardModal() {
+  document.getElementById('nc-name').value = '';
+  document.getElementById('nc-reminder').value = '';
+  document.getElementById('nc-steps').value = '';
+  selectedAccentColor = '#8FAFC9';
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+  document.querySelector('.color-swatch').classList.add('selected');
+  document.getElementById('add-card-backdrop').style.display = 'block';
+}
+
+function hideAddCardModal() {
+  document.getElementById('add-card-backdrop').style.display = 'none';
+}
+
+function selectAccent(el) {
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedAccentColor = el.dataset.color;
+}
+
+function saveNewCard() {
+  const name = document.getElementById('nc-name').value.trim();
+  if (!name) { showToast('Please enter a skill name'); return; }
+  const reminder = document.getElementById('nc-reminder').value.trim() || 'Practise this skill mindfully.';
+  const stepsRaw = document.getElementById('nc-steps').value.trim();
+  const steps = stepsRaw ? stepsRaw.split('\n').map(s => s.trim()).filter(Boolean) : ['Practise the skill'];
+  const customColor = document.getElementById('nc-custom-color').value;
+  const accent = selectedAccentColor !== '#8FAFC9' ? selectedAccentColor : customColor;
+
+  SKILLS.push({ name, accent, reminder, steps });
+  copingCounts.push(0);
+  copingImages.push([]);
+  store.set('customSkills', SKILLS);
+  store.set('copingCounts', copingCounts);
+  store.set('copingImages', copingImages);
+  save();
+  hideAddCardModal();
+  renderCopingCards();
+  showToast(name + ' card added ✓');
+}
+
+function deleteCard(i) {
+  if (!confirm('Remove this coping card?')) return;
+  SKILLS.splice(i, 1);
+  copingCounts.splice(i, 1);
+  copingImages.splice(i, 1);
+  store.set('customSkills', SKILLS);
+  store.set('copingCounts', copingCounts);
+  store.set('copingImages', copingImages);
+  save();
+  renderCopingCards();
+  showToast('Card removed');
+}
+
+function init() {
+  const now = new Date();
+  document.getElementById('header-date').textContent = now.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'});
+  document.getElementById('dash-date-sub').textContent = now.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  buildMultiSelect('ms-mode','pills-mode', MODES, 'mode');
+  buildMultiSelect('ms-need','pills-need', NEEDS, 'need');
+  buildMultiSelect('ms-schema','pills-schema', SCHEMAS, 'schema');
+  buildMultiSelect('ms-ce-schema','pills-ce-schema', SCHEMAS, 'ce-schema');
+  buildIntensityRow('intensity-row','ml');
+  buildIntensityRow('ce-intensity-row','ce');
+  buildSafetyRating();
+  renderCopingCards();
+  renderLogEntries();
+  renderPAHistory();
+  renderCEHistory();
+  journalNav(0);
+  updateDashboard();
+}
+
+init();
+</script>
+</body>
+</html>
